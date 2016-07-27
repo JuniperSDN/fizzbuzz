@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+	<meta charset="utf-8">
+	<head>
+		<title>SDN Visualizer</title>
+		<script src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+		<script src="http://d3js.org/d3.v3.min.js"></script>
+		<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+		<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-T8Gy5hrqNKT+hzMclPo118YTQO6cYprQmhrYwIiQ/3axmI1hQomh7Ud2hPOy8SP1" crossorigin="anonymous">
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tipsy/1.0.2/jquery.tipsy.css" rel="stylesheet" type="text/css" />
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tipsy/1.0.2/jquery.tipsy.js"></script>
+
+		<style type="text/css">
+			* {
+				font-family: sans-serif;
+			}
+
+			html, body {
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+				font-family: 'Roboto', sans-serif;
+			}
+
+			#usmap {
+				width: 100%;
+				height: 100%;
+				position: absolute;
+				z-index: -1;
+			}
+
+			.link {
+				/*stroke: #99c1ea;*/
+			}
+			.link:active {
+				stroke: #2196f3;
+			}
+			
+			.link.error {
+				stroke: #ff2828;
+				stroke-dasharray: 7;
+			}
+
+			.node text {
+				display: none;
+			}
+			.node:hover text {
+				display: block;
+			}
+			
+			.node circle {
+				fill: #2196f3;
+			}
+			.node:hover circle {
+				fill: #1469ad;
+			}
+
+			#link_traffic_stats_sidebar {
+				display: none;
+				position: absolute;
+				top: 0;
+				right: 0;
+				width: 450px;
+				height: 100%;
+				background: white;
+				box-shadow: 2px 0px 9px 0px #999;
+				overflow-y: auto;
+			}
+
+			#link_traffic_stats_sidebar .close {
+				position: absolute;
+				top: 10px;
+				right: 10px;
+				font-size: 30px;
+				cursor: pointer;
+
+			}
+
+			#link_traffic_stats_sidebar hr {
+				margin: 5px 0;
+			}
+
+			#link_traffic_stats_sidebar .interface > h4 {
+				margin-bottom: 5px;
+			}
+
+			#link_traffic_stats_sidebar .interface.latency_stats p:last-child {
+				margin-bottom: 0;
+			}
+
+			#link_traffic_stats_sidebar .link_name {
+				padding: 17px 15px;
+				padding-bottom: 4px;
+				background: #E91E63;
+				color: white;
+			}
+			#link_traffic_stats_sidebar .link_name h2 {
+				font-weight: 300;
+			}
+			#link_traffic_stats_sidebar .link_name span {
+				font-weight: 300;
+			}
+
+			#link_traffic_stats_sidebar h3 {
+				margin-top: 0;
+			}
+
+			#link_traffic_stats_sidebar h2, #link_traffic_stats_sidebar h4, #link_traffic_stats_sidebar h5 {
+				margin: 0;
+			}
+
+			#link_traffic_stats_sidebar .interface {
+				border: 1px solid #cccccc;
+				border-radius: 2px;
+				padding: 15px;
+				margin: 15px;
+			}
+
+			#lsps_sidebar {
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 300px;
+				height: 100%;
+				background: white;
+				border-right: 1px solid #787878;
+				padding: 20px;
+				overflow: auto;
+			}
+			#lsps_sidebar h3 {
+				margin-top: 0;
+			}
+			#lsps_sidebar .lsps_list i {
+				cursor: pointer;
+			}
+
+			#loading {
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				z-index: 100;
+				background: rgba(0,0,0,0.4);
+				display: none;
+			}
+			#loading.showLoader {
+				display: flex;
+			}
+			#loading img {
+				width: 5%;
+				margin: auto;
+			}
+
+		</style>
+	</head>
+
+	<body>
+		<div id="graph"></div>
+		<div id="link_traffic_stats_sidebar">
+			<i class="fa fa-times-circle close" aria-hidden="true"></i>
+			<div class="link_name">
+				<h2></h2>
+				<span></span>
+			</div>
+			<div class="interface latency_stats">
+				<h3>Latency</h3>
+				<hr />
+				<p class="wayA"></p>
+				<p class="wayB"></p>
+			</div>
+			<div class="interface endA">
+				<h3 class="name"></h3>
+				<table class="table table-striped">
+					<tr>
+						<td>Interface Address</td>
+						<td class="interface_addr"></td>
+					</tr>
+					<tr>
+						<td>Router ID</td>
+						<td class="router_id"></td>
+					</tr>
+				</table>
+				<h4>Input Data</h4>
+				<table class="table table-striped">
+					<tr>
+						<td>Input BPS</td>
+						<td class="input-bps"></td>
+					</tr>
+					<tr>
+						<td>Input Bytes</td>
+						<td class="input-bytes"></td>
+					</tr>
+					<tr>
+						<td>Input Packets</td>
+						<td class="input-packets"></td>
+					</tr>
+					<tr>
+						<td>Input PPS</td>
+						<td class="input-pps"></td>
+					</tr>
+				</table>
+				<h4>Output Data</h4>
+				<table class="table table-striped">
+					<tr>
+						<td>Output BPS</td>
+						<td class="output-bps"></td>
+					</tr>
+					<tr>
+						<td>Output Bytes</td>
+						<td class="output-bytes"></td>
+					</tr>
+					<tr>
+						<td>Output Packets</td>
+						<td class="output-packets"></td>
+					</tr>
+					<tr>
+						<td>Output PPS</td>
+						<td class="output-pps"></td>
+					</tr>
+				</table>
+			</div>
+			<div class="interface endZ">
+				<h3 class="name"></h3>
+				<table class="table table-striped">
+					<tr>
+						<td>Interface Address</td>
+						<td class="interface_addr"></td>
+					</tr>
+					<tr>
+						<td>Router ID</td>
+						<td class="router_id"></td>
+					</tr>
+				</table>
+				<h4>Input Data</h4>
+				<table class="table table-striped">
+					<tr>
+						<td>Input BPS</td>
+						<td class="input-bps"></td>
+					</tr>
+					<tr>
+						<td>Input Bytes</td>
+						<td class="input-bytes"></td>
+					</tr>
+					<tr>
+						<td>Input Packets</td>
+						<td class="input-packets"></td>
+					</tr>
+					<tr>
+						<td>Input PPS</td>
+						<td class="input-pps"></td>
+					</tr>
+				</table>
+				<h4>Output Data</h4>
+				<table class="table table-striped">
+					<tr>
+						<td>Output BPS</td>
+						<td class="output-bps"></td>
+					</tr>
+					<tr>
+						<td>Output Bytes</td>
+						<td class="output-bytes"></td>
+					</tr>
+					<tr>
+						<td>Output Packets</td>
+						<td class="output-packets"></td>
+					</tr>
+					<tr>
+						<td>Output PPS</td>
+						<td class="output-pps"></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+
+		<div id="lsps_sidebar">
+			<h3>List of LSPs</h3>
+			<ul class="list-group lsps_list">
+			</ul>
+		</div>
+
+		<div id="loading">
+			<img src="assets/spinner.gif">
+		</div>
+
+		<!-- /scripts -->
+		<script src="js/main.js"></script>
+		<script src="js/graph.js"></script>
+		<script src="js/socket.js"></script>
+	</body>
+
+</html>
